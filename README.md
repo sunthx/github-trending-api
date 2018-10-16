@@ -4,7 +4,7 @@
 
 ## trending
 
-返回当前 Github Trending 的内容
+返回当前 Github Trending 的内容
 
 ```bash
 curl 192.144.166.24:8090/trending
@@ -45,7 +45,7 @@ curl 192.144.166.24:8090/trending
             "fork": "114",
             "lang": ""
         },
-        ......
+        {...}
     ]
 }
 
@@ -81,7 +81,7 @@ curl 192.144.166.24:8090/contributions?user=sunthx
         "date": "2017-10-18",
         "color": "#ebedf0"
     },
-    ......
+    {...}
 ]
 ```
 
@@ -89,9 +89,9 @@ curl 192.144.166.24:8090/contributions?user=sunthx
 
 ### trending 
 
-- [ ] 加入语言，时间等参数
+- [ ] 加入语言，时间等参数
 - [ ] Rank 榜单
 
 ### contribution
 
-- [] 统计
+- [ ] 统计
