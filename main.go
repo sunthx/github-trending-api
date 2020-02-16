@@ -55,12 +55,13 @@ type Trending struct {
 }
 
 type Repository struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Url         string `json:"url"`
-	Star        string `json:"star"`
-	Fork        string `json:"fork"`
-	Lang        string `json:"lang"`
+	Name        	string `json:"name"`
+	Description 	string `json:"description"`
+	Url         	string `json:"url"`
+	Star        	string `json:"star"`
+	StarToday 		string `json:"star_today"`
+	Fork        	string `json:"fork"`
+	Lang        	string `json:"lang"`
 }
 
 func getTrending() (Trending, error) {
@@ -104,10 +105,11 @@ func resolveRepositoryTag(content string) Repository {
 	lang := stringFormat(getRepositoryLang(content))
 	desc := stringFormat(getRepositoryDescription(content))
 	star := stringFormat(getRepositoryStar(content))
+	starToday := stringFormat(getRepositoryTodayStar(content))
 	fork := stringFormat(getRepositoryFork(content))
 	url := "https://github.com" + name
 
-	return Repository{Name: name, Description: desc, Lang: lang, Star: star, Fork: fork, Url: url}
+	return Repository{Name: name, Description: desc, Lang: lang, Star: star,StarToday:starToday,Fork: fork, Url: url}
 }
 
 func stringFormat(content string) string {
@@ -143,6 +145,12 @@ func getRepositoryFork(content string) string {
 	repositoryItemForkTagExp := `(?<=<a class="[\s]?muted-link d-inline-block mr-3"[\s\S]+network/[\S]*">[\s\S]+g>)[\s\S]*?(?=<\/a>)`
 	forkValue := findFirstOrDefaultMatch(content, repositoryItemForkTagExp)
 	return forkValue
+}
+
+func getRepositoryTodayStar(content string) string {
+	repositoryItemStarTagExp := `(?<=<span class="[\s]?d-inline-block float-sm-right">[\s\S]+g>)[\s\S]*?(?=stars)`
+	starValue := findFirstOrDefaultMatch(content, repositoryItemStarTagExp)
+	return starValue
 }
 
 func findFirstOrDefaultMatch(content string, exp string) string {
