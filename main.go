@@ -15,11 +15,17 @@ import (
 )
 
 func main() {
-	fmt.Println(":8090")
+	fmt.Println("github_trending_api_server starting...")
+	
 	http.HandleFunc("/contributions", contributionAPIHandle)
 	http.HandleFunc("/trending", trendingAPIHandle)
 
-	http.ListenAndServe(":8090", nil)
+	http.HandleFunc("/",defaultHttpRequestHandle)
+	http.ListenAndServe(":8080", nil)
+}
+
+func defaultHttpRequestHandle(writer http.ResponseWriter, request *http.Request) {
+	fmt.Fprint(writer, "Hello world.")
 }
 
 func contributionAPIHandle(writer http.ResponseWriter, request *http.Request) {
@@ -58,26 +64,28 @@ type Repository struct {
 }
 
 func getTrending() (Trending, error) {
+	//no use http/2
+	//http.DefaultTransport.(*http.Transport).TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
 	requestUrl := "https://github.com/trending"
-	res, err := http.Get(requestUrl)
+	response,err := http.Get(requestUrl)
 	if err != nil {
-		return Trending{}, err
+		fmt.Println(err)
+		return Trending{},err
 	}
 
-	contentBytes, err := ioutil.ReadAll(res.Body)
+	contentBytes, err := ioutil.ReadAll(response.Body)
 	if err != nil || contentBytes == nil {
 		return Trending{}, err
 	}
 
 	htmlContent := string(contentBytes)
 	repositories := resolveRepositories(htmlContent)
-	return Trending{Repositories: repositories}, nil
+	return Trending{Repositories:repositories}, nil
 }
 
 func resolveRepositories(content string) []Repository {
-	repositoryItemExp := `<li class="col-12 d-block width-full py-4 border-bottom"[\s\S]*?>[\s\S]*?<\/li>`
-
-	regexp := regexp.MustCompile(repositoryItemExp)
+	rep := `<article class="Box-row">[\s\S]*?<\/article>`
+	regexp := regexp.MustCompile(rep)
 	match := regexp.FindAll([]byte(content), -1)
 	if match == nil {
 		return nil
@@ -109,8 +117,15 @@ func stringFormat(content string) string {
 }
 
 func getRepositoryName(content string) string {
-	repositoryItemNameExp := `(?<=<h3>[\s\S]+<a href=").*(?=">)`
-	return findFirstOrDefaultMatch(content, repositoryItemNameExp)
+	repositoryItemNameExp := `(?<=<h1[\s\S]+<a href=")[\S]+(?=")`
+	name := findFirstOrDefaultMatch(content,repositoryItemNameExp)
+	return name
+}
+
+func getRepositoryDescription(content string) string {
+	repositoryItemDescriptionExp := `(?<=<p class="col-9 text-gray my-1 pr-4">)[\s\S]+?(?=<\/p>)`
+	desc := findFirstOrDefaultMatch(content,repositoryItemDescriptionExp)
+	return desc;
 }
 
 func getRepositoryLang(content string) string {
@@ -118,32 +133,15 @@ func getRepositoryLang(content string) string {
 	return findFirstOrDefaultMatch(content, repositoryItemLangExp)
 }
 
-func getRepositoryDescription(content string) string {
-	repositoryItemDescriptionExp := `(?<=<p class="col-9 d-inline-block text-gray m-0 pr-4">)[\s\S]+?(?=<\/p>)`
-	return findFirstOrDefaultMatch(content, repositoryItemDescriptionExp)
-}
-
 func getRepositoryStar(content string) string {
-	repositoryItemStarTagExp := `<a class="muted-link d-inline-block mr-3" href="[\s\S]*?\/stargazers">[\s\S]*?<\/a>`
-	starTagContent := findFirstOrDefaultMatch(content, repositoryItemStarTagExp)
-	if starTagContent == "" {
-		return starTagContent
-	}
-
-	repositoryItemStarValueExp := `<\/svg>([\s\S]*)<\/a>`
-	starValue := findFirstOrDefaultMatch(starTagContent, repositoryItemStarValueExp)
+	repositoryItemStarTagExp := `(?<=<a class="[\s]?muted-link d-inline-block mr-3"[\s\S]+stargazers">[\s\S]+g>)[\s\S]*?(?=<\/a>)`
+	starValue := findFirstOrDefaultMatch(content, repositoryItemStarTagExp)
 	return starValue
 }
 
 func getRepositoryFork(content string) string {
-	repositoryItemForkTagExp := `<a class="muted-link d-inline-block mr-3" href=".*\/network">[\s\S]*?<\/a>`
-	forkTagContent := findFirstOrDefaultMatch(content, repositoryItemForkTagExp)
-	if forkTagContent == "" {
-		return forkTagContent
-	}
-
-	repositoryItemForkValueExp := `<\/svg>([\s\S]*)<\/a>`
-	forkValue := findFirstOrDefaultMatch(forkTagContent, repositoryItemForkValueExp)
+	repositoryItemForkTagExp := `(?<=<a class="[\s]?muted-link d-inline-block mr-3"[\s\S]+network/[\S]*">[\s\S]+g>)[\s\S]*?(?=<\/a>)`
+	forkValue := findFirstOrDefaultMatch(content, repositoryItemForkTagExp)
 	return forkValue
 }
 
