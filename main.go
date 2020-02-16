@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	fmt.Println("github_trending_api_server starting...")
+	fmt.Println("github_trending_api_server running...\n:8080\n/contributions?user=[username]\n/trending")
 	
 	http.HandleFunc("/contributions", contributionAPIHandle)
 	http.HandleFunc("/trending", trendingAPIHandle)
