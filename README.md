@@ -1,6 +1,6 @@
 # github-trending-api-server
 
-提供了两个接口：`trending` 和 `contribution`
+提供了两个接口：`/trending` 和 `/contributions?user=[username]`
 
 ## trending
 
