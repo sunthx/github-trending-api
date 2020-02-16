@@ -1,13 +1,13 @@
 # github-trending-api-server
 
-提供了两个接口：`trending` 和 `contribution`
+提供了两个接口：`/trending` 和 `/contributions?user=[username]`
 
 ## trending
 
 返回当前 Github Trending 的内容
 
 ```bash
-curl 192.144.166.24:8090/trending
+curl [your ip address]:8080/trending
 ```
 
 ```json
@@ -56,7 +56,7 @@ curl 192.144.166.24:8090/trending
 返回指定码农过去一年的贡献数
 
 ```bash
-curl 192.144.166.24:8090/contributions?user=sunthx
+curl [your ip address]:8080/contributions?user=sunthx
 ```
 
 ```json
@@ -84,14 +84,3 @@ curl 192.144.166.24:8090/contributions?user=sunthx
     {...}
 ]
 ```
-
-## TODO
-
-### trending 
-
-- [ ] 加入语言，时间等参数
-- [ ] Rank 榜单
-
-### contribution
-
-- [ ] 统计
