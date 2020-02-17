@@ -261,7 +261,7 @@ func getDeveloperTrending() ([]DeveloperTrendDataItem,error) {
 }
 
 func resolveDeveloperTrending(content string) []DeveloperTrendDataItem {
-	rep := `<article class="Box-row d-flex"[\s\S]+>[\s\S]*?<\/article>`
+	rep := `<article class="Box-row d-flex"[\s\S]+?>[\s\S\n]+?<\/article>`
 	regexp := regexp.MustCompile(rep)
 	match := regexp.FindAll([]byte(content), -1)
 	if match == nil {
@@ -277,7 +277,7 @@ func resolveDeveloperTrending(content string) []DeveloperTrendDataItem {
 }
 
 func resolveDeveloperTrendDataItem(content string) DeveloperTrendDataItem {
-	developIndexExp := `(?<=<a class="text-gray f6 text-center"[\s\S]+>)[\s][\S]+(?=<\/a>)`
+	developIndexExp := `(?<=<a class="text-gray f6 text-center"[\s\S]+?>)[\s\S]+?(?=<\/a>)`
 	avatarExp := `(?<=<img[\s\S]+src=")[\S]+(?=")`
 	userNameExp := `(?<=<h1 class="h3 lh-condensed">[\s\S]+>)[\s\S]+?(?=<\/a>[\s\S]+<\/h1>)`
 	nickNameExp := `(?<=<p class="f4 text-normal mb-1">[\s\S]+>)[\s\S]+?(?=<\/a>[\s\S]+<\/p>)`
@@ -298,7 +298,7 @@ func resolveDeveloperTrendDataItem(content string) DeveloperTrendDataItem {
 		Url:         "https://github.com" + stringFormat(findFirstOrDefaultMatch(content,repositoryUrlExp)),
 	}
 
-	index,_ := strconv.Atoi(findFirstOrDefaultMatch(content,developIndexExp))
+	index,_ := strconv.Atoi(stringFormat(findFirstOrDefaultMatch(content,developIndexExp)))
 	return DeveloperTrendDataItem{
 		Index:             index,
 		User:              user,
