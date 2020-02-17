@@ -15,10 +15,15 @@ import (
 )
 
 func main() {
-	fmt.Println("github_trending_api_server running...\n:8080\n/contributions?user=[username]\n/trending")
-	
+	fmt.Println("github_trending_api_server running...\n" +
+		":8080\n" +
+		"/contributions?user=[username]\n" +
+		"/trending\n" +
+		"/trending/developers")
+
 	http.HandleFunc("/contributions", contributionAPIHandle)
 	http.HandleFunc("/trending", trendingAPIHandle)
+	http.HandleFunc("/trending/developers",trendingDeveloperAPIHandle)
 
 	http.HandleFunc("/",defaultHttpRequestHandle)
 	http.ListenAndServe(":8080", nil)
@@ -26,6 +31,14 @@ func main() {
 
 func defaultHttpRequestHandle(writer http.ResponseWriter, request *http.Request) {
 	fmt.Fprint(writer, "Hello world.")
+}
+
+func trendingDeveloperAPIHandle(writer http.ResponseWriter,r *http.Request){
+	developerTrend, _ := getDeveloperTrending()
+	result, _ := json.Marshal(developerTrend)
+
+	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	fmt.Fprint(writer, string(result))
 }
 
 func contributionAPIHandle(writer http.ResponseWriter, request *http.Request) {
@@ -48,20 +61,6 @@ func trendingAPIHandle(writer http.ResponseWriter, request *http.Request) {
 
 	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 	fmt.Fprint(writer, string(result))
-}
-
-type Trending struct {
-	Repositories []Repository
-}
-
-type Repository struct {
-	Name        	string `json:"name"`
-	Description 	string `json:"description"`
-	Url         	string `json:"url"`
-	Star        	string `json:"star"`
-	StarToday 		string `json:"star_today"`
-	Fork        	string `json:"fork"`
-	Lang        	string `json:"lang"`
 }
 
 func getTrending() (Trending, error) {
@@ -168,12 +167,6 @@ func findFirstOrDefaultMatch(content string, exp string) string {
 	return match.String()
 }
 
-type Contribution struct {
-	DataCount int    `json:"count"`
-	Date      string `json:"date"`
-	Color     string `json:"color"`
-}
-
 func getContributions(userName string) ([]Contribution, error) {
 	if userName == "" {
 		return nil, errors.New("required:username")
@@ -249,4 +242,102 @@ func createContributionByRectTag(tag string) Contribution {
 	color := colorMatchResult.String()
 
 	return Contribution{Color: color, DataCount: dataCount, Date: date}
+}
+
+func getDeveloperTrending() ([]DeveloperTrendDataItem,error) {
+	requestUrl := "https://github.com/trending/developers"
+	res,error := http.Get(requestUrl)
+	if error != nil{
+		return nil,error
+	}
+
+	contentBytes, err := ioutil.ReadAll(res.Body)
+	if err != nil || contentBytes == nil {
+		return nil, err
+	}
+
+	contentString := string(contentBytes)
+	return resolveDeveloperTrending(contentString),nil
+}
+
+func resolveDeveloperTrending(content string) []DeveloperTrendDataItem {
+	rep := `<article class="Box-row d-flex"[\s\S]+>[\s\S]*?<\/article>`
+	regexp := regexp.MustCompile(rep)
+	match := regexp.FindAll([]byte(content), -1)
+	if match == nil {
+		return nil
+	}
+
+	result := make([]DeveloperTrendDataItem, 0)
+	for i := 0; i < len(match); i++ {
+		result = append(result, resolveDeveloperTrendDataItem(string(match[i])))
+	}
+
+	return result
+}
+
+func resolveDeveloperTrendDataItem(content string) DeveloperTrendDataItem {
+	developIndexExp := `(?<=<a class="text-gray f6 text-center"[\s\S]+>)[\s][\S]+(?=<\/a>)`
+	avatarExp := `(?<=<img[\s\S]+src=")[\S]+(?=")`
+	userNameExp := `(?<=<h1 class="h3 lh-condensed">[\s\S]+>)[\s\S]+?(?=<\/a>[\s\S]+<\/h1>)`
+	nickNameExp := `(?<=<p class="f4 text-normal mb-1">[\s\S]+>)[\s\S]+?(?=<\/a>[\s\S]+<\/p>)`
+
+	user := User{
+		Name:     stringFormat(findFirstOrDefaultMatch(content,userNameExp)),
+		NickName: stringFormat(findFirstOrDefaultMatch(content,nickNameExp)),
+		Avatar:   stringFormat(findFirstOrDefaultMatch(content,avatarExp)),
+	}
+
+	repositoryNameExp := `(?<=<article>[\s\S]+h1[\s\S]+\/svg>)[\s\S]+?(?=<)`
+	repositoryUrlExp := `(?<=<article>[\s\S]+href=")[\s\S]+?(?=")`
+	repositoryDescriptionExp := `(?<=<div class="f6 text-gray mt-1">)[\s\S]+?(?=<)`
+
+	repo := Repository{
+		Name:        stringFormat(findFirstOrDefaultMatch(content,repositoryNameExp)),
+		Description: stringFormat(findFirstOrDefaultMatch(content,repositoryDescriptionExp)),
+		Url:         stringFormat(findFirstOrDefaultMatch(content,repositoryUrlExp)),
+		Star:        "",
+		StarToday:   "",
+		Fork:        "",
+		Lang:        "",
+	}
+
+	index,_ := strconv.Atoi(findFirstOrDefaultMatch(content,developIndexExp))
+	return DeveloperTrendDataItem{
+		Index:             index,
+		User:              user,
+		PopularRepository: repo,
+	}
+}
+
+type Trending struct {
+	Repositories []Repository
+}
+
+type Repository struct {
+	Name        	string `json:"name"`
+	Description 	string `json:"description"`
+	Url         	string `json:"url"`
+	Star        	string `json:"star"`
+	StarToday 		string `json:"star_today"`
+	Fork        	string `json:"fork"`
+	Lang        	string `json:"lang"`
+}
+
+type Contribution struct {
+	DataCount int    `json:"count"`
+	Date      string `json:"date"`
+	Color     string `json:"color"`
+}
+
+type User struct {
+	Name		string `json:name`
+	NickName	string `json:nick_ame`
+	Avatar		string `json:avatar`
+}
+
+type DeveloperTrendDataItem struct {
+	Index				int		`json:index`
+	User				User		`json:user`
+	PopularRepository	Repository	`json:popular_repository`
 }
