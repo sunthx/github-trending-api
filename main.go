@@ -295,11 +295,7 @@ func resolveDeveloperTrendDataItem(content string) DeveloperTrendDataItem {
 	repo := Repository{
 		Name:        stringFormat(findFirstOrDefaultMatch(content,repositoryNameExp)),
 		Description: stringFormat(findFirstOrDefaultMatch(content,repositoryDescriptionExp)),
-		Url:         stringFormat(findFirstOrDefaultMatch(content,repositoryUrlExp)),
-		Star:        "",
-		StarToday:   "",
-		Fork:        "",
-		Lang:        "",
+		Url:         "https://github.com" + stringFormat(findFirstOrDefaultMatch(content,repositoryUrlExp)),
 	}
 
 	index,_ := strconv.Atoi(findFirstOrDefaultMatch(content,developIndexExp))
