@@ -14,19 +14,27 @@ import (
 	"github.com/pkg/errors"
 )
 
-func main() {
-	fmt.Println("github_trending_api_server running...\n" +
-		":8080\n" +
-		"/contributions?user=[username]\n" +
-		"/trending\n" +
-		"/trending/developers")
+var githubUrl = "https://github.com"
 
-	http.HandleFunc("/contributions", contributionAPIHandle)
-	http.HandleFunc("/trending", trendingAPIHandle)
-	http.HandleFunc("/trending/developers",trendingDeveloperAPIHandle)
+func main() {
+
+	listenPort := ":8080"
+	contributionRouteString := "/contributions"
+	trendingRouteString := "/trending/"
+	developerTrendingRouteString := "/trending/developers/"
+
+	fmt.Println("github_trending_api_server running...\n" +
+		listenPort + "\n" +
+		contributionRouteString + "?user=[username]\n" +
+		trendingRouteString + "\n" +
+		developerTrendingRouteString)
+
+	http.HandleFunc(contributionRouteString, contributionAPIHandle)
+	http.HandleFunc(trendingRouteString, trendingAPIHandle)
+	http.HandleFunc(developerTrendingRouteString,trendingDeveloperAPIHandle)
 
 	http.HandleFunc("/",defaultHttpRequestHandle)
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(listenPort, nil)
 }
 
 func defaultHttpRequestHandle(writer http.ResponseWriter, request *http.Request) {
@@ -56,17 +64,22 @@ func contributionAPIHandle(writer http.ResponseWriter, request *http.Request) {
 }
 
 func trendingAPIHandle(writer http.ResponseWriter, request *http.Request) {
-	trending, _ := getTrending()
+	trending, _ := getTrending(request)
 	result, _ := json.Marshal(trending)
 
 	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 	fmt.Fprint(writer, string(result))
 }
 
-func getTrending() (Trending, error) {
+func getTrending(request *http.Request) (Trending, error) {
 	//no use http/2
 	//http.DefaultTransport.(*http.Transport).TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
-	requestUrl := "https://github.com/trending"
+	requestUrl := githubUrl + "/trending"
+	sinceQueryValue := getSinceQueryValueFromRequest(request)
+	if sinceQueryValue != "" {
+		requestUrl = requestUrl + "?" + sinceQueryValue
+	}
+
 	response,err := http.Get(requestUrl)
 	if err != nil {
 		fmt.Println(err)
@@ -106,15 +119,9 @@ func resolveRepositoryTag(content string) Repository {
 	star := stringFormat(getRepositoryStar(content))
 	starToday := stringFormat(getRepositoryTodayStar(content))
 	fork := stringFormat(getRepositoryFork(content))
-	url := "https://github.com" + name
+	url := githubUrl + name
 
 	return Repository{Name: name, Description: desc, Lang: lang, Star: star,StarToday:starToday,Fork: fork, Url: url}
-}
-
-func stringFormat(content string) string {
-	content = strings.Replace(content, "\n", "", -1)
-	content = strings.TrimSpace(content)
-	return content
 }
 
 func getRepositoryName(content string) string {
@@ -173,7 +180,7 @@ func getContributions(userName string) ([]Contribution, error) {
 	}
 
 	currentTime := time.Now()
-	requestUrl := "https://github.com/users/" + userName + "/contributions?to=" + currentTime.Format("2006-01-02")
+	requestUrl := githubUrl+"/users/" + userName + "/contributions?to=" + currentTime.Format("2006-01-02")
 	res, err := http.Get(requestUrl)
 	if err != nil {
 		return nil, err
@@ -245,7 +252,7 @@ func createContributionByRectTag(tag string) Contribution {
 }
 
 func getDeveloperTrending() ([]DeveloperTrendDataItem,error) {
-	requestUrl := "https://github.com/trending/developers"
+	requestUrl := githubUrl + "/trending/developers"
 	res,error := http.Get(requestUrl)
 	if error != nil{
 		return nil,error
@@ -295,7 +302,7 @@ func resolveDeveloperTrendDataItem(content string) DeveloperTrendDataItem {
 	repo := Repository{
 		Name:        stringFormat(findFirstOrDefaultMatch(content,repositoryNameExp)),
 		Description: stringFormat(findFirstOrDefaultMatch(content,repositoryDescriptionExp)),
-		Url:         "https://github.com" + stringFormat(findFirstOrDefaultMatch(content,repositoryUrlExp)),
+		Url:         githubUrl + stringFormat(findFirstOrDefaultMatch(content,repositoryUrlExp)),
 	}
 
 	index,_ := strconv.Atoi(stringFormat(findFirstOrDefaultMatch(content,developIndexExp)))
@@ -304,6 +311,24 @@ func resolveDeveloperTrendDataItem(content string) DeveloperTrendDataItem {
 		User:              user,
 		PopularRepository: repo,
 	}
+}
+
+func getSinceQueryValueFromRequest(request *http.Request) string {
+	request.ParseForm()
+
+	sinceValue := request.Form.Get("since")
+	var since Since = Since(sinceValue)
+	if err := since.IsValid(); err != nil {
+		return ""
+	}
+
+	return "since="+sinceValue
+}
+
+func stringFormat(content string) string {
+	content = strings.Replace(content, "\n", "", -1)
+	content = strings.TrimSpace(content)
+	return content
 }
 
 type Trending struct {
@@ -337,3 +362,21 @@ type DeveloperTrendDataItem struct {
 	User				User		`json:user`
 	PopularRepository	Repository	`json:popular_repository`
 }
+
+type Since string
+const (
+	Daily 		Since = "daily"
+	Weekly		Since = "weekly"
+	Monthly		Since = "monthly"
+)
+
+func (lt Since) IsValid() error {
+	switch lt {
+	case Daily,Weekly,Monthly:
+		return nil
+	}
+	return errors.New("Invalid since type")
+}
+
+
+
