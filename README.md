@@ -1,6 +1,6 @@
 # github-trending-api-server
 
-提供了两个接口：`/trending` 和 `/contributions?user=[username]`
+提供了两个接口：`/trending?since=[daily\weekly\monthly]` 和 `/contributions?user=[username]`
 
 ## trending
 
@@ -44,8 +44,7 @@ curl [your ip address]:8080/trending
             "star": "1,628",
             "fork": "114",
             "lang": ""
-        },
-        {...}
+        }
     ]
 }
 
@@ -80,7 +79,6 @@ curl [your ip address]:8080/contributions?user=sunthx
         "count": 0,
         "date": "2017-10-18",
         "color": "#ebedf0"
-    },
-    {...}
+    }
 ]
 ```
