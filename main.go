@@ -16,15 +16,6 @@ import (
 
 var githubUrl = "https://github.com"
 
-var repoTrendDataSince = ""
-var developerTrendDataSince= ""
-
-var trendingContent = ""
-var developerTrendingContent = ""
-
-var globalUserName=""
-var contributionContent = ""
-
 func main() {
 	listenPort := ":8080"
 	contributionRouteString := "/contributions"
@@ -87,39 +78,25 @@ func getTrending(request *http.Request) ([]Repository, error) {
 	//no use http/2
 	//http.DefaultTransport.(*http.Transport).TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
 	githubRequestUrl := getGithubRequestPathAndQueryString(githubUrl,request)
-	if repoTrendDataSince != githubRequestUrl {
-		repoTrendDataSince = githubRequestUrl
-		trendingContent = ""
+	response,err := http.Get(githubRequestUrl)
+	if err != nil {
+		fmt.Println(err)
+		return nil,err
 	}
 
-	if trendingContent == "" {
-		response,err := http.Get(githubRequestUrl)
-		if err != nil {
-			fmt.Println(err)
-			return nil,err
-		}
-
-		contentBytes, err := ioutil.ReadAll(response.Body)
-		if err != nil || contentBytes == nil {
-			return nil, err
-		}
-
-		trendingContent = string(contentBytes)
+	contentBytes, err := ioutil.ReadAll(response.Body)
+	if err != nil || contentBytes == nil {
+		return nil, err
 	}
 
-	repositories := resolveRepositories(trendingContent)
+	repositories := resolveRepositories(string(contentBytes))
 	return repositories, nil
 }
 
 // 获取开发者排行榜
 func getDeveloperTrending(request *http.Request) ([]DeveloperTrendDataItem,error) {
 	githubRequestUrl := getGithubRequestPathAndQueryString(githubUrl,request)
-	if developerTrendDataSince != githubRequestUrl {
-		developerTrendDataSince = githubRequestUrl
-		developerTrendingContent = ""
-	}
 
-	if developerTrendingContent == "" {
 		res,error := http.Get(githubRequestUrl)
 		if error != nil{
 			return nil,error
@@ -130,10 +107,8 @@ func getDeveloperTrending(request *http.Request) ([]DeveloperTrendDataItem,error
 			return nil, err
 		}
 
-		developerTrendingContent = string(contentBytes)
-	}
 
-	return resolveDeveloperTrending(developerTrendingContent),nil
+	return resolveDeveloperTrending(string(contentBytes)),nil
 }
 
 // 获取指定用户活跃榜
@@ -142,28 +117,19 @@ func getContributions(userName string) ([]Contribution, error) {
 		return nil, errors.New("required:username")
 	}
 
-	if globalUserName != userName {
-		globalUserName = userName
-		contributionContent = ""
+	currentTime := time.Now()
+	requestUrl := githubUrl+"/users/" + userName + "/contributions?to=" + currentTime.Format("2006-01-02")
+	res, err := http.Get(requestUrl)
+	if err != nil {
+		return nil, err
 	}
 
-	if contributionContent == "" {
-		currentTime := time.Now()
-		requestUrl := githubUrl+"/users/" + userName + "/contributions?to=" + currentTime.Format("2006-01-02")
-		res, err := http.Get(requestUrl)
-		if err != nil {
-			return nil, err
-		}
-
-		contentBytes, err := ioutil.ReadAll(res.Body)
-		if err != nil || contentBytes == nil {
-			return nil, err
-		}
-
-		contributionContent = string(contentBytes)
+	contentBytes, err := ioutil.ReadAll(res.Body)
+	if err != nil || contentBytes == nil {
+		return nil, err
 	}
 
-	return resolveContributions(contributionContent), nil
+	return resolveContributions(string(contentBytes)), nil
 }
 
 func resolveRepositories(content string) []Repository {
@@ -203,7 +169,7 @@ func getRepositoryName(content string) string {
 func getRepositoryDescription(content string) string {
 	repositoryItemDescriptionExp := `(?<=<p class="col-9 text-gray my-1 pr-4">)[\s\S]+?(?=<\/p>)`
 	desc := findFirstOrDefaultMatch(content,repositoryItemDescriptionExp)
-	return desc;
+	return desc
 }
 
 func getRepositoryLang(content string) string {
