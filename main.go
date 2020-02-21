@@ -3,21 +3,29 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dlclark/regexp2"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/dlclark/regexp2"
-	"github.com/pkg/errors"
 )
 
 var githubUrl = "https://github.com"
 
-func main() {
+var repoTrendDataSince = ""
+var developerTrendDataSince= ""
 
+var trendingContent = ""
+var developerTrendingContent = ""
+
+var globalUserName=""
+var contributionContent = ""
+
+func main() {
 	listenPort := ":8080"
 	contributionRouteString := "/contributions"
 	trendingRouteString := "/trending/"
@@ -42,11 +50,8 @@ func defaultHttpRequestHandle(writer http.ResponseWriter, request *http.Request)
 }
 
 func trendingDeveloperAPIHandle(writer http.ResponseWriter,r *http.Request){
-	developerTrend, _ := getDeveloperTrending()
-	result, _ := json.Marshal(developerTrend)
-
-	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprint(writer, string(result))
+	developerTrend, _ := getDeveloperTrending(r)
+	ok(writer,developerTrend)
 }
 
 func contributionAPIHandle(writer http.ResponseWriter, request *http.Request) {
@@ -57,43 +62,108 @@ func contributionAPIHandle(writer http.ResponseWriter, request *http.Request) {
 
 	user := request.Form.Get("user")
 	contributions, _ := getContributions(user)
-	result, _ := json.Marshal(contributions)
-
-	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprint(writer, string(result))
+	ok(writer,contributions)
 }
 
 func trendingAPIHandle(writer http.ResponseWriter, request *http.Request) {
 	trending, _ := getTrending(request)
-	result, _ := json.Marshal(trending)
-
-	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprint(writer, string(result))
+	ok(writer,trending)
 }
 
-func getTrending(request *http.Request) (Trending, error) {
+func ok(response http.ResponseWriter,data interface{}){
+	result := ApiResponse{
+		Code: 200,
+		Data: data,
+		Date: time.Now(),
+	}
+
+	jsonValue, _ := json.Marshal(result)
+	response.Header().Set("Content-Type", "application/json; charset=utf-8")
+	fmt.Fprint(response, string(jsonValue))
+}
+
+// 获取项目排行榜
+func getTrending(request *http.Request) ([]Repository, error) {
 	//no use http/2
 	//http.DefaultTransport.(*http.Transport).TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
-	requestUrl := githubUrl + "/trending"
-	sinceQueryValue := getSinceQueryValueFromRequest(request)
-	if sinceQueryValue != "" {
-		requestUrl = requestUrl + "?" + sinceQueryValue
+	githubRequestUrl := getGithubRequestPathAndQueryString(githubUrl,request)
+	if repoTrendDataSince != githubRequestUrl {
+		repoTrendDataSince = githubRequestUrl
+		trendingContent = ""
 	}
 
-	response,err := http.Get(requestUrl)
-	if err != nil {
-		fmt.Println(err)
-		return Trending{},err
+	if trendingContent == "" {
+		response,err := http.Get(githubRequestUrl)
+		if err != nil {
+			fmt.Println(err)
+			return nil,err
+		}
+
+		contentBytes, err := ioutil.ReadAll(response.Body)
+		if err != nil || contentBytes == nil {
+			return nil, err
+		}
+
+		trendingContent = string(contentBytes)
 	}
 
-	contentBytes, err := ioutil.ReadAll(response.Body)
-	if err != nil || contentBytes == nil {
-		return Trending{}, err
+	repositories := resolveRepositories(trendingContent)
+	return repositories, nil
+}
+
+// 获取开发者排行榜
+func getDeveloperTrending(request *http.Request) ([]DeveloperTrendDataItem,error) {
+	githubRequestUrl := getGithubRequestPathAndQueryString(githubUrl,request)
+	if developerTrendDataSince != githubRequestUrl {
+		developerTrendDataSince = githubRequestUrl
+		developerTrendingContent = ""
 	}
 
-	htmlContent := string(contentBytes)
-	repositories := resolveRepositories(htmlContent)
-	return Trending{Repositories:repositories}, nil
+	if developerTrendingContent == "" {
+		res,error := http.Get(githubRequestUrl)
+		if error != nil{
+			return nil,error
+		}
+
+		contentBytes, err := ioutil.ReadAll(res.Body)
+		if err != nil || contentBytes == nil {
+			return nil, err
+		}
+
+		developerTrendingContent = string(contentBytes)
+	}
+
+	return resolveDeveloperTrending(developerTrendingContent),nil
+}
+
+// 获取指定用户活跃榜
+func getContributions(userName string) ([]Contribution, error) {
+	if userName == "" {
+		return nil, errors.New("required:username")
+	}
+
+	if globalUserName != userName {
+		globalUserName = userName
+		contributionContent = ""
+	}
+
+	if contributionContent == "" {
+		currentTime := time.Now()
+		requestUrl := githubUrl+"/users/" + userName + "/contributions?to=" + currentTime.Format("2006-01-02")
+		res, err := http.Get(requestUrl)
+		if err != nil {
+			return nil, err
+		}
+
+		contentBytes, err := ioutil.ReadAll(res.Body)
+		if err != nil || contentBytes == nil {
+			return nil, err
+		}
+
+		contributionContent = string(contentBytes)
+	}
+
+	return resolveContributions(contributionContent), nil
 }
 
 func resolveRepositories(content string) []Repository {
@@ -174,27 +244,6 @@ func findFirstOrDefaultMatch(content string, exp string) string {
 	return match.String()
 }
 
-func getContributions(userName string) ([]Contribution, error) {
-	if userName == "" {
-		return nil, errors.New("required:username")
-	}
-
-	currentTime := time.Now()
-	requestUrl := githubUrl+"/users/" + userName + "/contributions?to=" + currentTime.Format("2006-01-02")
-	res, err := http.Get(requestUrl)
-	if err != nil {
-		return nil, err
-	}
-
-	contentBytes, err := ioutil.ReadAll(res.Body)
-	if err != nil || contentBytes == nil {
-		return nil, err
-	}
-
-	contentString := string(contentBytes)
-	return resolveContributions(contentString), nil
-}
-
 func resolveContributions(content string) []Contribution {
 	rectTags := resolveRectTags(content)
 	if len(rectTags) == 0 {
@@ -251,22 +300,6 @@ func createContributionByRectTag(tag string) Contribution {
 	return Contribution{Color: color, DataCount: dataCount, Date: date}
 }
 
-func getDeveloperTrending() ([]DeveloperTrendDataItem,error) {
-	requestUrl := githubUrl + "/trending/developers"
-	res,error := http.Get(requestUrl)
-	if error != nil{
-		return nil,error
-	}
-
-	contentBytes, err := ioutil.ReadAll(res.Body)
-	if err != nil || contentBytes == nil {
-		return nil, err
-	}
-
-	contentString := string(contentBytes)
-	return resolveDeveloperTrending(contentString),nil
-}
-
 func resolveDeveloperTrending(content string) []DeveloperTrendDataItem {
 	rep := `<article class="Box-row d-flex"[\s\S]+?>[\s\S\n]+?<\/article>`
 	regexp := regexp.MustCompile(rep)
@@ -295,6 +328,8 @@ func resolveDeveloperTrendDataItem(content string) DeveloperTrendDataItem {
 		Avatar:   stringFormat(findFirstOrDefaultMatch(content,avatarExp)),
 	}
 
+	user.Website = githubUrl + "/" + user.NickName
+
 	repositoryNameExp := `(?<=<article>[\s\S]+h1[\s\S]+\/svg>)[\s\S]+?(?=<)`
 	repositoryUrlExp := `(?<=<article>[\s\S]+href=")[\s\S]+?(?=")`
 	repositoryDescriptionExp := `(?<=<div class="f6 text-gray mt-1">)[\s\S]+?(?=<)`
@@ -313,16 +348,33 @@ func resolveDeveloperTrendDataItem(content string) DeveloperTrendDataItem {
 	}
 }
 
-func getSinceQueryValueFromRequest(request *http.Request) string {
+func getGithubRequestPathAndQueryString(baseUrl string,request *http.Request) string {
 	request.ParseForm()
 
+	requestPath,_ := url.Parse(baseUrl)
+	requestPath.Path += request.URL.Path
 	sinceValue := request.Form.Get("since")
-	var since Since = Since(sinceValue)
-	if err := since.IsValid(); err != nil {
-		return ""
+	spokenValue := request.Form.Get("spoken_language_code")
+
+	params := url.Values{}
+	if sinceValue != "" {
+		var since = Since(strings.ToLower(sinceValue))
+		if err:= since.IsValid(); err == nil {
+			params.Add("since",sinceValue)
+		}
 	}
 
-	return "since="+sinceValue
+	if spokenValue != "" {
+		var spoken = Spoken(strings.ToLower(spokenValue))
+		if err:= spoken.IsValid(); err == nil {
+			params.Add("spoken_language_code",spokenValue)
+		}
+	}
+
+	requestPath.RawQuery = params.Encode()
+	res := requestPath.String()
+	fmt.Println("request path :" + res)
+	return res
 }
 
 func stringFormat(content string) string {
@@ -331,8 +383,10 @@ func stringFormat(content string) string {
 	return content
 }
 
-type Trending struct {
-	Repositories []Repository
+type ApiResponse struct {
+	Code 	int 			`json:"code"`
+	Data	interface{}		`json:"data"`
+	Date	time.Time		`json:"time"`
 }
 
 type Repository struct {
@@ -352,15 +406,16 @@ type Contribution struct {
 }
 
 type User struct {
-	Name		string `json:name`
-	NickName	string `json:nick_ame`
-	Avatar		string `json:avatar`
+	Name		string `json:"name"`
+	NickName	string `json:"nick_name"`
+	Avatar		string `json:"avatar"`
+	Website		string `json:"website"`
 }
 
 type DeveloperTrendDataItem struct {
-	Index				int		`json:index`
-	User				User		`json:user`
-	PopularRepository	Repository	`json:popular_repository`
+	Index				int		`json:"index"`
+	User				User		`json:"user"`
+	PopularRepository	Repository	`json:"popular_repository"`
 }
 
 type Since string
@@ -378,5 +433,18 @@ func (lt Since) IsValid() error {
 	return errors.New("Invalid since type")
 }
 
+type Spoken string
+const(
+	Chinese		Spoken = "zh"
+	English		Spoken = "en"
+)
+
+func(sp Spoken) IsValid() error {
+	switch sp {
+	case Chinese,English:
+		return nil
+	}
+	return errors.New("invalid spoken type")
+}
 
 
