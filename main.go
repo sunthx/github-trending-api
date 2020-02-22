@@ -216,13 +216,17 @@ func resolveContributions(content string) []Contribution {
 		return nil
 	}
 
-	contributions := make([]Contribution, 0)
+	res := make([]Contribution,0)
 	for i := 0; i < len(rectTags); i++ {
-		contribution := createContributionByRectTag(rectTags[i])
-		contributions = append(contributions, contribution)
+		contributionData := createContributionByRectTag(rectTags[i])
+		res = append(res,contributionData)
 	}
 
-	return contributions
+	for left, right := 0, len(res)-1; left < right; left, right = left+1, right-1 {
+		res[left], res[right] = res[right], res[left]
+	}
+
+	return res
 }
 
 func resolveRectTags(content string) []string {
@@ -241,7 +245,7 @@ func resolveRectTags(content string) []string {
 	return result
 }
 
-func createContributionByRectTag(tag string) Contribution {
+func createContributionByRectTag(tag string) Contribution{
 	exp := `(?<=<rect.*data-count=").*(?="\s*data-date.*\/>)|(?<=<rect.*\s*data-date=").*(?="\s?.*\/>)|(?<=<rect.*fill=").*(?="\s*data-count.*\/>)`
 	regexp2 := regexp2.MustCompile(exp, 0)
 	colorMatchResult, err := regexp2.FindStringMatch(tag)
@@ -260,10 +264,32 @@ func createContributionByRectTag(tag string) Contribution {
 	}
 
 	dataCount, _ := strconv.Atoi(dataCountMatch.String())
-	date := dateMatchResult.String()
-	color := colorMatchResult.String()
+	date,_ := time.Parse("2006-01-02",dateMatchResult.String())
 
-	return Contribution{Color: color, DataCount: dataCount, Date: date}
+	contributionData := Contribution{
+		OfficialColor: colorMatchResult.String(),
+		Date:          date,
+		Total:         dataCount,
+	}
+
+	contributionData.Weekday = int(date.Weekday())
+	contributionData.Month = date.Month().String()
+	contributionData.Year = date.Year()
+
+	switch contributionData.OfficialColor {
+	case "#ebedf0":
+		contributionData.Level = 0
+	case "#c6e48b":
+		contributionData.Level = 1
+	case "#7bc96f":
+		contributionData.Level = 2
+	case "#239a3b":
+		contributionData.Level = 3
+	case "#196127":
+		contributionData.Level = 4
+	}
+
+	return contributionData
 }
 
 func resolveDeveloperTrending(content string) []DeveloperTrendDataItem {
@@ -365,10 +391,15 @@ type Repository struct {
 	Lang        	string `json:"lang"`
 }
 
+
 type Contribution struct {
-	DataCount int    `json:"count"`
-	Date      string `json:"date"`
-	Color     string `json:"color"`
+	Level				int			`json:"level"`
+	OfficialColor 		string		`json:"color"`
+	Date				time.Time	`json:"time"`
+	Year				int			`json:"year"`
+	Month				string		`json:"month"`
+	Weekday				int			`json:"weekday"`
+	Total				int			`json:"total"`
 }
 
 type User struct {
@@ -412,5 +443,4 @@ func(sp Spoken) IsValid() error {
 	}
 	return errors.New("invalid spoken type")
 }
-
 
