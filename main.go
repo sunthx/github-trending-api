@@ -157,6 +157,10 @@ func resolveRepositoryTag(content string) Repository {
 	fork := stringFormat(getRepositoryFork(content))
 	url := githubUrl + name
 
+	if lang == "" {
+		lang = "Mars"
+	}
+
 	return Repository{Name: name, Description: desc, Lang: lang, Star: star,StarToday:starToday,Fork: fork, Url: url}
 }
 
