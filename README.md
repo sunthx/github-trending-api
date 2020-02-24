@@ -1,8 +1,8 @@
-# trending-server
+# Trending-server
 
 > Get Github Trending && User Contribution 
 
-## interface
+## Interface
 
 * /trending?since=[daily\weekly\monthly]&spoken_language=[zh\us]
 * /trending/[program_language?since=[daily\weekly\monthly]&spoken_language=[zh\us]
