@@ -2,7 +2,6 @@ package contribution
 
 import (
 	"encoding/json"
-	"fmt"
 	"gtrending/internal"
 	. "gtrending/internal/contribution/model"
 	"gtrending/internal/contribution/service"
@@ -26,7 +25,6 @@ func UserContributionRequestHandle(writer http.ResponseWriter, request *http.Req
 	var cacheValue []Contribution
 	cache := internal.GetValueFromCache(userCacheKey,&cacheValue)
 	if cache != nil {
-		fmt.Println("From " + userCacheKey)
 		internal.OK(writer,cache)
 		return
 	}
@@ -36,6 +34,7 @@ func UserContributionRequestHandle(writer http.ResponseWriter, request *http.Req
 		jsonResult,_ := json.Marshal(user)
 		internal.SetValueToCache(userCacheKey,jsonResult)
 		internal.OK(writer,contributions)
+		return
 	}
 
 	internal.BadRequest(writer)

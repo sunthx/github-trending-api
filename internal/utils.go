@@ -1,8 +1,10 @@
 package internal
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
-	"fmt"
+	. "fmt"
 	"github.com/dlclark/regexp2"
 	"github.com/go-redis/redis/v7"
 	"net/http"
@@ -56,7 +58,7 @@ func OK(response http.ResponseWriter,data interface{}){
 
 	jsonValue, _ := json.Marshal(result)
 	response.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprint(response, string(jsonValue))
+	Fprint(response, string(jsonValue))
 }
 
 func BadRequest(response http.ResponseWriter) {
@@ -68,7 +70,7 @@ func BadRequest(response http.ResponseWriter) {
 
 	jsonValue, _ := json.Marshal(result)
 	response.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprint(response, string(jsonValue))
+	Fprint(response, string(jsonValue))
 }
 
 func RedisNewClient() *redis.Client {
@@ -109,4 +111,10 @@ func SetValueToCache(key string,v interface{}) {
 
 	defer client.Close()
 	client.SetNX(key,v,CacheExpirationTime).Result()
+}
+
+func Md5(str string) string  {
+	h := md5.New()
+	h.Write([]byte(str))
+	return hex.EncodeToString(h.Sum(nil))
 }

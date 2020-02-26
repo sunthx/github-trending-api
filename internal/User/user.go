@@ -2,7 +2,6 @@ package User
 
 import (
 	"encoding/json"
-	"fmt"
 	"gtrending/internal"
 	"gtrending/internal/User/model"
 	"gtrending/internal/User/service"
@@ -22,7 +21,6 @@ func DetailRequestHandle(writer http.ResponseWriter, request *http.Request) {
 	var cacheValue model.User
 	cache := internal.GetValueFromCache(userCacheKey,&cacheValue)
 	if cache != nil {
-		fmt.Println("From " + userCacheKey)
 		internal.OK(writer,cache)
 		return
 	}
@@ -35,6 +33,5 @@ func DetailRequestHandle(writer http.ResponseWriter, request *http.Request) {
 
 	jsonResult,_ := json.Marshal(user)
 	internal.SetValueToCache(userCacheKey,jsonResult)
-	fmt.Println("From Request")
 	internal.OK(writer,user)
 }

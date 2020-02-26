@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	. "gtrending/internal"
 	"gtrending/internal/User/model"
 	. "gtrending/internal/trending/model"
@@ -19,7 +18,6 @@ func GetTrending(requestUrl string) ([]Repository, error) {
 	//http.DefaultTransport.(*http.Transport).TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
 	response,err := http.Get(requestUrl)
 	if err != nil {
-		fmt.Println(err)
 		return nil,err
 	}
 

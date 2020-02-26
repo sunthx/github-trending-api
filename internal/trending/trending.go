@@ -2,7 +2,6 @@ package trending
 
 import (
 	"encoding/json"
-	"fmt"
 	. "gtrending/internal"
 	. "gtrending/internal/trending/model"
 	. "gtrending/internal/trending/service"
@@ -13,11 +12,10 @@ import (
 
 func TrendRequestHandle(writer http.ResponseWriter, request *http.Request) {
 	githubRequestUrl := getGithubRequestPathAndQueryString(GithubUrl, request)
-	trendingCacheKey := "cache:trending:repo:request:" + githubRequestUrl
+	trendingCacheKey := "cache:trending:repo:" + Md5(githubRequestUrl)
 	var cacheValue []Repository
 	cache := GetValueFromCache(trendingCacheKey,&cacheValue)
 	if cache != nil {
-		fmt.Println("From Cache")
 		OK(writer,cache)
 		return
 	}
@@ -27,31 +25,30 @@ func TrendRequestHandle(writer http.ResponseWriter, request *http.Request) {
 	if trending != nil && len(trending) > 0 {
 		jsonResult,_ := json.Marshal(trending)
 		SetValueToCache(trendingCacheKey,jsonResult)
-		fmt.Println("From Request")
 		OK(writer,trending)
+		return
 	}
 
 	BadRequest(writer)
 }
 
 func DeveloperRequestHandle(writer http.ResponseWriter, r *http.Request) {
-	trendingCacheKey := "cache:trending:developer"
+	githubRequestUrl := getGithubRequestPathAndQueryString(GithubUrl, r)
+	trendingCacheKey := "cache:trending:developer:" + Md5(githubRequestUrl)
 	var cacheValue []Developer
 	cache := GetValueFromCache(trendingCacheKey,&cacheValue)
 	if cache != nil {
-		fmt.Println("From [cache:trending:developer]")
 		OK(writer,cache)
 		return
 	}
 
-	githubRequestUrl := getGithubRequestPathAndQueryString(GithubUrl, r)
 	developerTrend, _ := GetDeveloperTrending(githubRequestUrl)
 
 	if developerTrend != nil && len(developerTrend) > 0 {
 		jsonResult,_ := json.Marshal(developerTrend)
 		SetValueToCache(trendingCacheKey,jsonResult)
-		fmt.Println("From Request")
 		OK(writer,developerTrend)
+		return
 	}
 
 	BadRequest(writer)
