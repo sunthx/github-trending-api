@@ -3,12 +3,12 @@ package service
 import (
 	"fmt"
 	. "gtrending/internal"
+	"gtrending/internal/User/model"
 	. "gtrending/internal/trending/model"
 	"io/ioutil"
 	"net/http"
 	"regexp"
 	"strconv"
-	"strings"
 )
 
 
@@ -63,12 +63,12 @@ func resolveRepositories(content string) []Repository {
 }
 
 func resolveRepositoryTag(content string) Repository {
-	name := stringFormat(getRepositoryName(content))
-	lang := stringFormat(getRepositoryLang(content))
-	desc := stringFormat(getRepositoryDescription(content))
-	star := stringFormat(getRepositoryStar(content))
-	starToday := stringFormat(getRepositoryTodayStar(content))
-	fork := stringFormat(getRepositoryFork(content))
+	name := TrimSpace(getRepositoryName(content))
+	lang := TrimSpace(getRepositoryLang(content))
+	desc := TrimSpace(getRepositoryDescription(content))
+	star := TrimSpace(getRepositoryStar(content))
+	starToday := TrimSpace(getRepositoryTodayStar(content))
+	fork := TrimSpace(getRepositoryFork(content))
 	url := GithubUrl + name
 
 	if lang == "" {
@@ -135,10 +135,10 @@ func resolveDeveloperTrendDataItem(content string) Developer {
 	userNameExp := `(?<=<h1 class="h3 lh-condensed">[\s\S]+>)[\s\S]+?(?=<\/a>[\s\S]+<\/h1>)`
 	nickNameExp := `(?<=<p class="f4 text-normal mb-1">[\s\S]+>)[\s\S]+?(?=<\/a>[\s\S]+<\/p>)`
 
-	user := User{
-		Name:     stringFormat(FindFirstOrDefaultMatchUseRegex2(content,userNameExp)),
-		NickName: stringFormat(FindFirstOrDefaultMatchUseRegex2(content,nickNameExp)),
-		Avatar:   stringFormat(FindFirstOrDefaultMatchUseRegex2(content,avatarExp)),
+	user := model.User{
+		Name:     TrimSpace(FindFirstOrDefaultMatchUseRegex2(content,userNameExp)),
+		NickName: TrimSpace(FindFirstOrDefaultMatchUseRegex2(content,nickNameExp)),
+		Avatar:   TrimSpace(FindFirstOrDefaultMatchUseRegex2(content,avatarExp)),
 	}
 
 	user.Website = GithubUrl + "/" + user.NickName
@@ -148,21 +148,15 @@ func resolveDeveloperTrendDataItem(content string) Developer {
 	repositoryDescriptionExp := `(?<=<div class="f6 text-gray mt-1">)[\s\S]+?(?=<)`
 
 	repo := Repository{
-		Name:        stringFormat(FindFirstOrDefaultMatchUseRegex2(content,repositoryNameExp)),
-		Description: stringFormat(FindFirstOrDefaultMatchUseRegex2(content,repositoryDescriptionExp)),
-		Url:         GithubUrl + stringFormat(FindFirstOrDefaultMatchUseRegex2(content,repositoryUrlExp)),
+		Name:        TrimSpace(FindFirstOrDefaultMatchUseRegex2(content,repositoryNameExp)),
+		Description: TrimSpace(FindFirstOrDefaultMatchUseRegex2(content,repositoryDescriptionExp)),
+		Url:         GithubUrl + TrimSpace(FindFirstOrDefaultMatchUseRegex2(content,repositoryUrlExp)),
 	}
 
-	index,_ := strconv.Atoi(stringFormat(FindFirstOrDefaultMatchUseRegex2(content,developIndexExp)))
+	index,_ := strconv.Atoi(TrimSpace(FindFirstOrDefaultMatchUseRegex2(content,developIndexExp)))
 	return Developer{
 		Index:             index,
 		User:              user,
 		PopularRepository: repo,
 	}
-}
-
-func stringFormat(content string) string {
-	content = strings.Replace(content, "\n", "", -1)
-	content = strings.TrimSpace(content)
-	return content
 }
