@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 
@@ -69,13 +70,29 @@ func resolveRepositoryTag(content string) Repository {
 	star := TrimSpace(getRepositoryStar(content))
 	starToday := TrimSpace(getRepositoryTodayStar(content))
 	fork := TrimSpace(getRepositoryFork(content))
+	avatars := getRepositoryAuthorAvatar(content)
+
 	url := GithubUrl + name
 
 	if lang == "" {
 		lang = "Mars"
 	}
 
-	return Repository{Name: name, Description: desc, Lang: lang, Star: star,StarToday:starToday,Fork: fork, Url: url}
+	return Repository{
+		AuthorAvatar:avatars,
+		Name: name,
+		Description: desc,
+		Lang: lang,
+		Star: star,
+		StarToday:starToday,
+		Fork: fork,
+		Url: url}
+}
+
+func getRepositoryAuthorAvatar(content string) string {
+	avatarExp := `(?<=<img class="avatar mb-1" src=")\S+?(?=")`
+	query := FindFirstOrDefaultMatchUseRegex2(content,avatarExp)
+	return  query[0:strings.LastIndex(query,"?")]
 }
 
 func getRepositoryName(content string) string {

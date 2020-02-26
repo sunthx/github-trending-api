@@ -23,7 +23,7 @@ func main() {
 		developerTrendingRouteString + "\n" +
 		userRoutString + "?name=[username]")
 
-	http.HandleFunc(contributionRouteString, contribution.ContributionRequestHandle)
+	http.HandleFunc(contributionRouteString, contribution.UserContributionRequestHandle)
 	http.HandleFunc(trendingRouteString, trending.TrendRequestHandle)
 	http.HandleFunc(developerTrendingRouteString,trending.DeveloperRequestHandle)
 	http.HandleFunc(userRoutString,User.DetailRequestHandle)
