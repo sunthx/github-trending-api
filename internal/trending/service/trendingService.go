@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
-	"strings"
 )
 
 
@@ -89,8 +88,7 @@ func resolveRepositoryTag(content string) Repository {
 
 func getRepositoryAuthorAvatar(content string) string {
 	avatarExp := `(?<=<img class="avatar mb-1" src=")\S+?(?=")`
-	query := FindFirstOrDefaultMatchUseRegex2(content,avatarExp)
-	return  query[0:strings.LastIndex(query,"?")]
+	return FindFirstOrDefaultMatchUseRegex2(content,avatarExp)
 }
 
 func getRepositoryName(content string) string {
