@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"gtrending/internal"
 	"gtrending/internal/User/model"
 	"io/ioutil"
@@ -26,13 +27,18 @@ func GetUser(userName string) (model.User,error) {
 
 func resolveUser(content string) model.User {
 	avatarExp := `(?<=<img[\s\S]+?avatar-before-user-status" src=")\S+?(?=")`
-	nameExp := `(?<=<span[\s\S]+?itemprop="name">)\S+?(?=<)`
-	nickNameExp :=`(?<=<span[\s\S]+?itemprop="additionalName">)\S+?(?=<)`
+	nameExp := `(?<=<span[\s\S]+?itemprop="name">)[\s\S]+?(?=<\/span>)`
+	nickNameExp :=`(?<=<span[\s\S]+?itemprop="additionalName">)[\s\S]+?(?=<\/span>)`
 
 	res := model.User{}
 	res.Avatar = internal.TrimSpace(internal.FindFirstOrDefaultMatchUseRegex2(content,avatarExp))
 	res.Name= internal.TrimSpace(internal.FindFirstOrDefaultMatchUseRegex2(content,nameExp))
 	res.NickName= internal.TrimSpace(internal.FindFirstOrDefaultMatchUseRegex2(content,nickNameExp))
+
+	fmt.Println(content)
+	fmt.Println("avatar:"+res.Avatar)
+	fmt.Println("nickName:"+res.NickName)
+	fmt.Println("name:"+res.Name)
 
 	return res
 }
