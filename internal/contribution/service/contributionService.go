@@ -18,10 +18,9 @@ func GetContributions(userName string) ([]Contribution, error) {
 		return nil, errors.New("required:username")
 	}
 
-	currentTime := time.Now()
-	requestUrl := internal.GithubUrl +"/users/" + userName + "/contributions?to=" + currentTime.Format("2006-01-02")
+	requestUrl := internal.GithubUrl +"/users/" + userName + "/contributions"
 	res, err := http.Get(requestUrl)
-	if err != nil {
+	if res.StatusCode != http.StatusOK || err != nil {
 		return nil, err
 	}
 
@@ -53,7 +52,7 @@ func resolveContributions(content string) []Contribution {
 }
 
 func resolveRectTags(content string) []string {
-	exp := `<rect.*?\/>`
+	exp := `<rect.*?\>`
 	regexp := regexp.MustCompile(exp)
 	match := regexp.FindAll([]byte(content), -1)
 	if match == nil {
