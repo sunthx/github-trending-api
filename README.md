@@ -1,4 +1,4 @@
-# Trending-server
+# github-trending-api
 
 > Get Github Trending && User Contribution 
 
