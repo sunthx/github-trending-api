@@ -2,11 +2,20 @@
 
 > Get Github Trending && User Contribution 
 
+## TODO
+
+- [ ] monitoring usage data
+- [ ] use gorouting
+
 ## Interface
 
-* /trending?since=[daily\weekly\monthly]&spoken_language=[zh\us]
-* /trending/[program_language?since=[daily\weekly\monthly]&spoken_language=[zh\us]
-* /trending/developer?since=[daily\weekly\monthly]&spoken_language=[zh\us]
-* /contributions?user=[username]
+- [x] User
+* GetUserInfoByUserName
+
+- [x] Contributions
+* GetContributionsByUserName
+
+- [x] Trending
+* GetTrendingBy[Since/SpokenLang/ProgramLang]
 
 
